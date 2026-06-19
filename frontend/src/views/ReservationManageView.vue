@@ -1,0 +1,449 @@
+<template>
+  <div class="page-container">
+    <div class="view-header">
+      <div class="header-content">
+        <h1 class="view-title">预约管理</h1>
+        <p class="view-subtitle">管理读者预约排队，处理预约取消</p>
+      </div>
+      <div class="header-actions">
+        <div class="search-wrapper">
+          <el-input
+            v-model="keyword"
+            placeholder="搜索书名或读者名"
+            clearable
+            class="apple-search"
+            @keyup.enter="handleSearch"
+            @clear="handleSearch"
+          >
+            <template #prefix>
+              <el-icon class="search-icon"><IepSearch /></el-icon>
+            </template>
+          </el-input>
+        </div>
+        <el-button class="apple-btn secondary" @click="handleSearch">
+          <el-icon><IepRefresh /></el-icon>
+          <span>刷新</span>
+        </el-button>
+      </div>
+    </div>
+
+    <div class="content-body">
+      <el-skeleton v-if="loading" :rows="10" animated class="apple-skeleton" />
+
+      <div v-else-if="records.length === 0" class="empty-state">
+        <el-empty description="暂无预约记录" :image-size="120" />
+      </div>
+
+      <div v-else>
+        <!-- Desktop Table View -->
+        <div class="table-card hidden-xs-only">
+          <el-table :data="records" class="apple-table">
+            <el-table-column prop="queuePosition" label="序号" width="80" align="center">
+              <template #default="{ row }">
+                <span :class="['queue-badge', row.status === 'WAITING' ? 'waiting' : 'cancelled']">
+                  #{{ row.queuePosition }}
+                </span>
+              </template>
+            </el-table-column>
+            <el-table-column prop="userName" label="预约读者" width="140">
+              <template #default="{ row }">
+                <div class="user-cell">
+                  <div class="user-avatar-mini">{{ row.userName?.charAt(0) }}</div>
+                  <span class="user-name-text">{{ row.userName }}</span>
+                </div>
+              </template>
+            </el-table-column>
+            <el-table-column prop="bookTitle" label="图书名称" min-width="200">
+              <template #default="{ row }">
+                <span class="book-title-text">{{ row.bookTitle }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column prop="reservationTime" label="预约时间" width="180">
+              <template #default="{ row }">
+                <span class="date-text">{{ formatDateTime(row.reservationTime) }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column prop="status" label="状态" width="120" align="center">
+              <template #default="{ row }">
+                <el-tag :type="getStatusType(row.status)" size="small" class="apple-tag status">
+                  {{ getStatusLabel(row.status) }}
+                </el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column label="操作" width="120" align="right" fixed="right">
+              <template #default="{ row }">
+                <el-button
+                  v-if="row.status === 'WAITING'"
+                  size="small"
+                  class="apple-btn danger-light"
+                  @click="handleCancel(row)"
+                >
+                  取消预约
+                </el-button>
+                <span v-else class="cancelled-text">-</span>
+              </template>
+            </el-table-column>
+          </el-table>
+        </div>
+
+        <!-- Mobile Card View -->
+        <div class="mobile-cards hidden-sm-and-up">
+          <div v-for="record in records" :key="record.id" class="reservation-mobile-card">
+            <div class="card-header">
+              <div class="book-info">
+                <h3 class="book-title">{{ record.bookTitle }}</h3>
+                <p class="borrower-name">预约人：{{ record.userName }}</p>
+                <p class="queue-info">排队序号：<span class="queue-num">#{{ record.queuePosition }}</span></p>
+              </div>
+              <el-tag :type="getStatusType(record.status)" size="small" class="apple-tag">
+                {{ getStatusLabel(record.status) }}
+              </el-tag>
+            </div>
+            <div class="card-details">
+              <div class="detail-item">
+                <span class="label">预约时间</span>
+                <span class="value">{{ formatDateTime(record.reservationTime) }}</span>
+              </div>
+            </div>
+            <div class="card-actions" v-if="record.status === 'WAITING'">
+              <el-button
+                class="apple-btn danger-light full-width"
+                @click="handleCancel(record)"
+              >
+                取消预约
+              </el-button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script setup>
+import { computed, onMounted, ref } from "vue";
+import { useStore } from "vuex";
+import { ElMessage, ElMessageBox } from "element-plus";
+import {
+  Search as IepSearch,
+  Refresh as IepRefresh
+} from "@element-plus/icons-vue";
+
+const store = useStore();
+const records = computed(() => store.getters["reservations/allReservations"]);
+const loading = computed(() => store.getters["reservations/loading"]);
+
+const keyword = ref("");
+
+const formatDateTime = (dateStr) => {
+  if (!dateStr) return "-";
+  return dateStr.replace("T", " ").substring(0, 16);
+};
+
+const getStatusType = (status) => {
+  const map = {
+    'WAITING': 'warning',
+    'CANCELLED': 'info',
+    'FULFILLED': 'success'
+  };
+  return map[status] || 'info';
+};
+
+const getStatusLabel = (status) => {
+  const map = {
+    'WAITING': '排队中',
+    'CANCELLED': '已取消',
+    'FULFILLED': '已到书'
+  };
+  return map[status] || status;
+};
+
+const handleSearch = () => {
+  store.dispatch("reservations/fetchAllReservations", keyword.value || null);
+};
+
+const handleCancel = (row) => {
+  ElMessageBox.confirm(`确定取消读者「${row.userName}」对《${row.bookTitle}》的预约吗？取消后后续排队序号将自动重排。`, "取消预约", {
+    confirmButtonText: "确认取消",
+    cancelButtonText: "返回",
+    type: "warning"
+  }).then(async () => {
+    await store.dispatch("reservations/cancelReservation", row.id);
+    ElMessage.success("预约已取消，排队序号已重排");
+  });
+};
+
+onMounted(() => {
+  handleSearch();
+});
+</script>
+
+<style scoped>
+.page-container {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+.view-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 24px;
+}
+
+.view-title {
+  font-size: 32px;
+  font-weight: 700;
+  color: var(--apple-text);
+  margin: 0;
+  letter-spacing: -1px;
+}
+
+.view-subtitle {
+  font-size: 16px;
+  color: var(--apple-text-secondary);
+  margin: 4px 0 0 0;
+}
+
+.header-actions {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+
+.search-wrapper {
+  width: 280px;
+}
+
+.apple-search :deep(.el-input__wrapper) {
+  background-color: rgba(0, 0, 0, 0.05);
+  box-shadow: none !important;
+  border-radius: 10px;
+  padding: 8px 12px;
+  transition: all 0.2s ease;
+}
+
+.apple-search :deep(.el-input__wrapper.is-focus) {
+  background-color: #ffffff;
+  box-shadow: 0 0 0 1px var(--apple-blue) !important;
+}
+
+.search-icon {
+  font-size: 18px;
+  color: var(--apple-text-secondary);
+}
+
+.apple-btn {
+  border-radius: 20px;
+  padding: 10px 20px;
+  height: auto;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  border: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.apple-btn.secondary {
+  background-color: rgba(0, 0, 0, 0.05);
+  color: var(--apple-text);
+}
+
+.apple-btn.secondary:hover {
+  background-color: rgba(0, 0, 0, 0.08);
+}
+
+.apple-btn.danger-light {
+  background-color: rgba(255, 59, 48, 0.1);
+  color: #ff3b30;
+  border-radius: 20px;
+  padding: 8px 16px;
+  height: auto;
+  font-weight: 500;
+  border: none;
+}
+
+.empty-state {
+  display: flex;
+  justify-content: center;
+  padding: 60px 0;
+}
+
+/* Apple Style Table */
+.table-card {
+  background: white;
+  border-radius: var(--apple-radius);
+  box-shadow: var(--apple-shadow);
+  overflow: hidden;
+  padding: 8px;
+}
+
+.apple-table :deep(th.el-table__cell) {
+  background-color: transparent;
+  color: var(--apple-text-secondary);
+  font-weight: 600;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 16px 8px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.apple-table :deep(td.el-table__cell) {
+  padding: 16px 8px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.03);
+}
+
+.user-cell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.user-avatar-mini {
+  width: 24px;
+  height: 24px;
+  background-color: #e5e5ea;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--apple-text-secondary);
+}
+
+.book-title-text {
+  font-weight: 600;
+  color: var(--apple-text);
+}
+
+.queue-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 28px;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+
+.queue-badge.waiting {
+  background-color: rgba(255, 149, 0, 0.1);
+  color: #ff9500;
+}
+
+.queue-badge.cancelled {
+  background-color: rgba(0, 0, 0, 0.05);
+  color: var(--apple-text-secondary);
+}
+
+.date-text {
+  font-variant-numeric: tabular-nums;
+  font-size: 14px;
+  color: var(--apple-text-secondary);
+}
+
+.apple-tag {
+  border-radius: 6px;
+  border: none;
+  font-weight: 600;
+}
+
+.cancelled-text {
+  color: var(--apple-text-secondary);
+}
+
+/* Mobile Cards */
+.mobile-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.reservation-mobile-card {
+  background: white;
+  border-radius: var(--apple-radius);
+  padding: 20px;
+  box-shadow: var(--apple-shadow);
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 16px;
+}
+
+.book-title {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.borrower-name {
+  margin: 4px 0 0 0;
+  font-size: 13px;
+  color: var(--apple-text-secondary);
+}
+
+.queue-info {
+  margin: 4px 0 0 0;
+  font-size: 13px;
+  color: var(--apple-text-secondary);
+}
+
+.queue-num {
+  color: #ff9500;
+  font-weight: 700;
+}
+
+.card-details {
+  margin-bottom: 16px;
+}
+
+.detail-item {
+  display: flex;
+  justify-content: space-between;
+  font-size: 14px;
+}
+
+.detail-item .label {
+  color: var(--apple-text-secondary);
+}
+
+.detail-item .value {
+  font-weight: 500;
+}
+
+.card-actions {
+  display: flex;
+}
+
+.full-width {
+  width: 100%;
+  justify-content: center;
+}
+
+@media (max-width: 768px) {
+  .view-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .header-actions {
+    width: 100%;
+    flex-direction: column;
+  }
+
+  .search-wrapper {
+    width: 100%;
+  }
+}
+</style>

@@ -57,22 +57,36 @@
                 </span>
               </template>
             </el-table-column>
-            <el-table-column label="操作" :width="isAdmin ? 200 : 120" align="right" fixed="right">
+            <el-table-column label="操作" :width="isAdmin ? 200 : 200" align="right" fixed="right">
               <template #default="{ row }">
                 <div class="action-buttons">
                   <template v-if="isAdmin">
                     <el-button size="small" class="apple-btn-text" @click="openDialog(row)">编辑</el-button>
                     <el-button size="small" class="apple-btn-text danger" @click="remove(row.id)">删除</el-button>
                   </template>
-                  <el-button
-                    v-else
-                    size="small"
-                    class="apple-btn secondary"
-                    :disabled="row.availableCopies <= 0"
-                    @click="openBorrowDialog(row)"
-                  >
-                    借阅
-                  </el-button>
+                  <template v-else>
+                    <el-tooltip
+                      :content="row.availableCopies > 0 ? '可直接借阅' : '暂无库存，可预约排队'"
+                      placement="top"
+                    >
+                      <el-button
+                        size="small"
+                        class="apple-btn secondary"
+                        :disabled="row.availableCopies <= 0"
+                        @click="openBorrowDialog(row)"
+                      >
+                        借阅
+                      </el-button>
+                    </el-tooltip>
+                    <el-button
+                      v-if="row.availableCopies <= 0"
+                      size="small"
+                      class="apple-btn reserve-btn"
+                      @click="handleReserve(row)"
+                    >
+                      预约
+                    </el-button>
+                  </template>
                 </div>
               </template>
             </el-table-column>
@@ -104,15 +118,24 @@
                 <el-button size="small" class="apple-btn secondary" @click="openDialog(book)">编辑</el-button>
                 <el-button size="small" class="apple-btn danger-light" @click="remove(book.id)">删除</el-button>
               </template>
-              <el-button
-                v-else
-                size="default"
-                class="apple-btn primary full-width"
-                :disabled="book.availableCopies <= 0"
-                @click="openBorrowDialog(book)"
-              >
-                借阅书籍
-              </el-button>
+              <template v-else>
+                <el-button
+                  size="small"
+                  class="apple-btn secondary action-btn"
+                  :disabled="book.availableCopies <= 0"
+                  @click="openBorrowDialog(book)"
+                >
+                  借阅
+                </el-button>
+                <el-button
+                  v-if="book.availableCopies <= 0"
+                  size="small"
+                  class="apple-btn reserve-btn action-btn"
+                  @click="handleReserve(book)"
+                >
+                  预约
+                </el-button>
+              </template>
             </div>
           </div>
         </div>
@@ -277,6 +300,25 @@ const handleBorrow = async () => {
     await store.dispatch("books/fetchBooks");
   } finally {
     borrowing.value = false;
+  }
+};
+
+const reserving = ref(false);
+const handleReserve = async (row) => {
+  if (!profile.value) return;
+  reserving.value = true;
+  try {
+    await store.dispatch("reservations/createReservation", {
+      bookId: row.id,
+      userId: profile.value.id
+    });
+    ElMessage({
+      message: `已成功预约《${row.title}》，请到"我的预约"查看排队状态`,
+      type: 'success',
+      plain: true
+    });
+  } finally {
+    reserving.value = false;
   }
 };
 
@@ -466,6 +508,15 @@ loadData();
   color: #ff3b30;
 }
 
+.apple-btn.reserve-btn {
+  background-color: rgba(255, 149, 0, 0.12);
+  color: #ff9500;
+}
+
+.apple-btn.reserve-btn:hover {
+  background-color: rgba(255, 149, 0, 0.2);
+}
+
 .apple-btn-text {
   border: none;
   background: transparent;
@@ -485,6 +536,13 @@ loadData();
 
 .apple-btn-text.danger:hover {
   background-color: rgba(255, 59, 48, 0.08);
+}
+
+.action-buttons {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: flex-end;
 }
 
 /* Apple Style Table */
@@ -613,6 +671,11 @@ loadData();
 .card-actions {
   display: flex;
   gap: 12px;
+}
+
+.action-btn {
+  flex: 1;
+  justify-content: center;
 }
 
 .full-width {
