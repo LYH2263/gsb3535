@@ -7,6 +7,8 @@ import UsersView from "../views/UsersView.vue";
 import BorrowsView from "../views/BorrowsView.vue";
 import HistoryView from "../views/HistoryView.vue";
 import OverdueView from "../views/OverdueView.vue";
+import MyReservationsView from "../views/MyReservationsView.vue";
+import ReservationManageView from "../views/ReservationManageView.vue";
 
 const routes = [
   {
@@ -22,6 +24,8 @@ const routes = [
       { path: "books", name: "books", component: BooksView },
       { path: "users", name: "users", component: UsersView, meta: { requiresAdmin: true } },
       { path: "borrows", name: "borrows", component: BorrowsView },
+      { path: "my-reservations", name: "my-reservations", component: MyReservationsView },
+      { path: "reservations", name: "reservations", component: ReservationManageView, meta: { requiresAdmin: true } },
       { path: "history", name: "history", component: HistoryView, meta: { requiresAdmin: true } },
       { path: "overdue", name: "overdue", component: OverdueView, meta: { requiresAdmin: true } }
     ]
