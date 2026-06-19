@@ -20,6 +20,10 @@
           <el-icon><IepReading /></el-icon>
           <span>借阅管理</span>
         </el-menu-item>
+        <el-menu-item index="/my-reservations" v-if="!isAdmin">
+          <el-icon><IepBell /></el-icon>
+          <span>我的预约</span>
+        </el-menu-item>
         <el-menu-item index="/history" v-if="isAdmin">
           <el-icon><IepTimer /></el-icon>
           <span>全馆历史</span>
@@ -27,6 +31,10 @@
         <el-menu-item index="/overdue" v-if="isAdmin">
           <el-icon><IepWarning /></el-icon>
           <span>逾期统计</span>
+        </el-menu-item>
+        <el-menu-item index="/reservation-manage" v-if="isAdmin">
+          <el-icon><IepBell /></el-icon>
+          <span>预约管理</span>
         </el-menu-item>
         <el-menu-item index="/users" v-if="isAdmin">
           <el-icon><IepUser /></el-icon>
@@ -60,6 +68,10 @@
           <el-icon><IepReading /></el-icon>
           <span>借阅管理</span>
         </el-menu-item>
+        <el-menu-item index="/my-reservations" v-if="!isAdmin">
+          <el-icon><IepBell /></el-icon>
+          <span>我的预约</span>
+        </el-menu-item>
         <el-menu-item index="/history" v-if="isAdmin">
           <el-icon><IepTimer /></el-icon>
           <span>全馆历史</span>
@@ -67,6 +79,10 @@
         <el-menu-item index="/overdue" v-if="isAdmin">
           <el-icon><IepWarning /></el-icon>
           <span>逾期统计</span>
+        </el-menu-item>
+        <el-menu-item index="/reservation-manage" v-if="isAdmin">
+          <el-icon><IepBell /></el-icon>
+          <span>预约管理</span>
         </el-menu-item>
         <el-menu-item index="/users" v-if="isAdmin">
           <el-icon><IepUser /></el-icon>
@@ -121,7 +137,8 @@ import {
   Timer as IepTimer,
   Warning as IepWarning,
   User as IepUser,
-  Menu as IepMenu
+  Menu as IepMenu,
+  Bell as IepBell
 } from "@element-plus/icons-vue";
 
 const route = useRoute();
@@ -142,7 +159,9 @@ const currentPageName = computed(() => {
     "/borrows": "借阅管理",
     "/history": "全馆历史",
     "/overdue": "逾期统计",
-    "/users": "用户管理"
+    "/users": "用户管理",
+    "/my-reservations": "我的预约",
+    "/reservation-manage": "预约管理"
   };
   return map[route.path] || "图书馆系统";
 });
