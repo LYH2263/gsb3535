@@ -73,6 +73,16 @@
                   >
                     借阅
                   </el-button>
+                  <el-button
+                    v-if="!isAdmin"
+                    size="small"
+                    class="apple-btn secondary"
+                    :disabled="row.availableCopies > 0"
+                    :title="row.availableCopies > 0 ? '可直接借阅' : '加入预约队列'"
+                    @click="handleReserve(row)"
+                  >
+                    预约
+                  </el-button>
                 </div>
               </template>
             </el-table-column>
@@ -112,6 +122,15 @@
                 @click="openBorrowDialog(book)"
               >
                 借阅书籍
+              </el-button>
+              <el-button
+                v-if="!isAdmin"
+                size="default"
+                class="apple-btn secondary full-width"
+                :disabled="book.availableCopies > 0"
+                @click="handleReserve(book)"
+              >
+                {{ book.availableCopies > 0 ? '可直接借阅' : '预约排队' }}
               </el-button>
             </div>
           </div>
@@ -277,6 +296,44 @@ const handleBorrow = async () => {
     await store.dispatch("books/fetchBooks");
   } finally {
     borrowing.value = false;
+  }
+};
+
+const handleReserve = async (book) => {
+  if (!book || !profile.value) {
+    return;
+  }
+  if (book.availableCopies > 0) {
+    ElMessage.info("当前可借数量充足，可直接借阅");
+    return;
+  }
+  try {
+    await ElMessageBox.confirm(
+      `《${book.title}》当前无可借库存，确认加入预约队列？`,
+      "确认预约",
+      {
+        confirmButtonText: "确认预约",
+        cancelButtonText: "取消",
+        type: "info",
+        confirmButtonClass: 'apple-btn primary',
+        cancelButtonClass: 'apple-btn secondary'
+      }
+    );
+  } catch (e) {
+    return;
+  }
+  try {
+    await store.dispatch("reservations/createReservation", {
+      bookId: book.id,
+      userId: profile.value.id
+    });
+    ElMessage({
+      message: `已为《${book.title}》提交预约，请到「我的预约」查看排队进度`,
+      type: 'success',
+      plain: true
+    });
+  } catch (err) {
+    // 错误信息已由 http 拦截器统一提示
   }
 };
 
