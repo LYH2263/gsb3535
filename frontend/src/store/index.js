@@ -3,6 +3,7 @@ import auth from "./modules/auth";
 import books from "./modules/books";
 import users from "./modules/users";
 import borrows from "./modules/borrows";
+import reservations from "./modules/reservations";
 import ui from "./modules/ui";
 
 export default createStore({
@@ -11,6 +12,7 @@ export default createStore({
     books,
     users,
     borrows,
+    reservations,
     ui
   }
 });

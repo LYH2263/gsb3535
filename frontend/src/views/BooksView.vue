@@ -57,22 +57,46 @@
                 </span>
               </template>
             </el-table-column>
-            <el-table-column label="操作" :width="isAdmin ? 200 : 120" align="right" fixed="right">
+            <el-table-column label="操作" :width="isAdmin ? 200 : 200" align="right" fixed="right">
               <template #default="{ row }">
                 <div class="action-buttons">
                   <template v-if="isAdmin">
                     <el-button size="small" class="apple-btn-text" @click="openDialog(row)">编辑</el-button>
                     <el-button size="small" class="apple-btn-text danger" @click="remove(row.id)">删除</el-button>
                   </template>
-                  <el-button
-                    v-else
-                    size="small"
-                    class="apple-btn secondary"
-                    :disabled="row.availableCopies <= 0"
-                    @click="openBorrowDialog(row)"
-                  >
-                    借阅
-                  </el-button>
+                  <template v-else>
+                    <el-button
+                      size="small"
+                      class="apple-btn secondary"
+                      :disabled="row.availableCopies <= 0"
+                      @click="openBorrowDialog(row)"
+                    >
+                      借阅
+                    </el-button>
+                    <el-tooltip
+                      v-if="row.availableCopies > 0"
+                      content="可直接借阅"
+                      placement="top"
+                    >
+                      <span>
+                        <el-button
+                          size="small"
+                          class="apple-btn warning-light"
+                          disabled
+                        >
+                          预约
+                        </el-button>
+                      </span>
+                    </el-tooltip>
+                    <el-button
+                      v-else
+                      size="small"
+                      class="apple-btn primary"
+                      @click="handleReserve(row)"
+                    >
+                      预约
+                    </el-button>
+                  </template>
                 </div>
               </template>
             </el-table-column>
@@ -104,15 +128,39 @@
                 <el-button size="small" class="apple-btn secondary" @click="openDialog(book)">编辑</el-button>
                 <el-button size="small" class="apple-btn danger-light" @click="remove(book.id)">删除</el-button>
               </template>
-              <el-button
-                v-else
-                size="default"
-                class="apple-btn primary full-width"
-                :disabled="book.availableCopies <= 0"
-                @click="openBorrowDialog(book)"
-              >
-                借阅书籍
-              </el-button>
+              <template v-else>
+                <el-button
+                  size="default"
+                  class="apple-btn secondary"
+                  :disabled="book.availableCopies <= 0"
+                  @click="openBorrowDialog(book)"
+                >
+                  借阅
+                </el-button>
+                <el-tooltip
+                  v-if="book.availableCopies > 0"
+                  content="可直接借阅"
+                  placement="top"
+                >
+                  <span style="flex: 1;">
+                    <el-button
+                      size="default"
+                      class="apple-btn warning-light full-width"
+                      disabled
+                    >
+                      预约
+                    </el-button>
+                  </span>
+                </el-tooltip>
+                <el-button
+                  v-else
+                  size="default"
+                  class="apple-btn primary"
+                  @click="handleReserve(book)"
+                >
+                  预约
+                </el-button>
+              </template>
             </div>
           </div>
         </div>
@@ -246,6 +294,7 @@ const handleSearch = () => {
 
 const borrowDialogVisible = ref(false);
 const borrowing = ref(false);
+const reserving = ref(false);
 const selectedBook = ref(null);
 const borrowForm = reactive({
   borrowDays: 14
@@ -277,6 +326,27 @@ const handleBorrow = async () => {
     await store.dispatch("books/fetchBooks");
   } finally {
     borrowing.value = false;
+  }
+};
+
+const handleReserve = async (book) => {
+  if (!profile.value) {
+    return;
+  }
+  reserving.value = true;
+  try {
+    await store.dispatch("reservations/createReservation", {
+      bookId: book.id,
+      userId: profile.value.id
+    });
+    ElMessage({
+      message: `已成功预约《${book.title}》`,
+      type: 'success',
+      plain: true
+    });
+    await store.dispatch("books/fetchBooks");
+  } finally {
+    reserving.value = false;
   }
 };
 
@@ -464,6 +534,11 @@ loadData();
 .apple-btn.danger-light {
   background-color: rgba(255, 59, 48, 0.1);
   color: #ff3b30;
+}
+
+.apple-btn.warning-light {
+  background-color: rgba(255, 149, 0, 0.1);
+  color: #ff9500;
 }
 
 .apple-btn-text {
