@@ -29,3 +29,14 @@ CREATE TABLE IF NOT EXISTS borrow_record (
   CONSTRAINT fk_borrow_user FOREIGN KEY (user_id) REFERENCES library_user(id),
   CONSTRAINT fk_borrow_book FOREIGN KEY (book_id) REFERENCES book(id)
 );
+
+CREATE TABLE IF NOT EXISTS book_reservation (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  user_id BIGINT NOT NULL,
+  book_id BIGINT NOT NULL,
+  queue_position INT NOT NULL,
+  reservation_time DATETIME NOT NULL,
+  status VARCHAR(20) NOT NULL,
+  CONSTRAINT fk_reservation_user FOREIGN KEY (user_id) REFERENCES library_user(id),
+  CONSTRAINT fk_reservation_book FOREIGN KEY (book_id) REFERENCES book(id)
+);

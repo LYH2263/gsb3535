@@ -57,22 +57,31 @@
                 </span>
               </template>
             </el-table-column>
-            <el-table-column label="操作" :width="isAdmin ? 200 : 120" align="right" fixed="right">
+            <el-table-column label="操作" :width="isAdmin ? 200 : 200" align="right" fixed="right">
               <template #default="{ row }">
                 <div class="action-buttons">
                   <template v-if="isAdmin">
                     <el-button size="small" class="apple-btn-text" @click="openDialog(row)">编辑</el-button>
                     <el-button size="small" class="apple-btn-text danger" @click="remove(row.id)">删除</el-button>
                   </template>
-                  <el-button
-                    v-else
-                    size="small"
-                    class="apple-btn secondary"
-                    :disabled="row.availableCopies <= 0"
-                    @click="openBorrowDialog(row)"
-                  >
-                    借阅
-                  </el-button>
+                  <template v-else>
+                    <el-button
+                      size="small"
+                      class="apple-btn secondary"
+                      :disabled="row.availableCopies <= 0"
+                      @click="openBorrowDialog(row)"
+                    >
+                      借阅
+                    </el-button>
+                    <el-button
+                      size="small"
+                      class="apple-btn reserve-btn"
+                      :disabled="row.availableCopies > 0"
+                      @click="handleReserve(row)"
+                    >
+                      {{ row.availableCopies > 0 ? '可直接借阅' : '预约' }}
+                    </el-button>
+                  </template>
                 </div>
               </template>
             </el-table-column>
@@ -104,15 +113,24 @@
                 <el-button size="small" class="apple-btn secondary" @click="openDialog(book)">编辑</el-button>
                 <el-button size="small" class="apple-btn danger-light" @click="remove(book.id)">删除</el-button>
               </template>
-              <el-button
-                v-else
-                size="default"
-                class="apple-btn primary full-width"
-                :disabled="book.availableCopies <= 0"
-                @click="openBorrowDialog(book)"
-              >
-                借阅书籍
-              </el-button>
+              <template v-else>
+                <el-button
+                  size="default"
+                  class="apple-btn primary"
+                  :disabled="book.availableCopies <= 0"
+                  @click="openBorrowDialog(book)"
+                >
+                  借阅
+                </el-button>
+                <el-button
+                  size="default"
+                  class="apple-btn reserve-btn"
+                  :disabled="book.availableCopies > 0"
+                  @click="handleReserve(book)"
+                >
+                  {{ book.availableCopies > 0 ? '可借' : '预约' }}
+                </el-button>
+              </template>
             </div>
           </div>
         </div>
@@ -277,6 +295,23 @@ const handleBorrow = async () => {
     await store.dispatch("books/fetchBooks");
   } finally {
     borrowing.value = false;
+  }
+};
+
+const handleReserve = async (book) => {
+  if (!profile.value) return;
+  try {
+    await store.dispatch("reservations/reserve", {
+      bookId: book.id,
+      userId: profile.value.id
+    });
+    ElMessage({
+      message: `成功预约《${book.title}》`,
+      type: 'success',
+      plain: true
+    });
+  } catch (e) {
+    ElMessage.error(e.message || "预约失败");
   }
 };
 
@@ -466,6 +501,21 @@ loadData();
   color: #ff3b30;
 }
 
+.apple-btn.reserve-btn {
+  background-color: rgba(255, 149, 0, 0.1);
+  color: #ff9500;
+}
+
+.apple-btn.reserve-btn:hover:not(:disabled) {
+  background-color: rgba(255, 149, 0, 0.2);
+}
+
+.apple-btn.reserve-btn:disabled {
+  background-color: rgba(0, 0, 0, 0.03);
+  color: var(--apple-text-secondary);
+  cursor: not-allowed;
+}
+
 .apple-btn-text {
   border: none;
   background: transparent;
@@ -613,6 +663,16 @@ loadData();
 .card-actions {
   display: flex;
   gap: 12px;
+}
+
+.card-actions .apple-btn {
+  flex: 1;
+  justify-content: center;
+  border-radius: 20px;
+  padding: 10px 20px;
+  height: auto;
+  font-weight: 500;
+  border: none;
 }
 
 .full-width {
